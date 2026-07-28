@@ -1,0 +1,161 @@
+{
+  "name": "dynamic-terminal-paths",
+  "displayName": "Dynamic Terminal Paths",
+  "description": "Dynamic Terminal Paths makes file paths in the integrated terminal smart and clickable. Define regex-based matchers in your VS Code settings to detect paths in Git output, logs, or test runs, and automatically open them in the editor instead of Explorer. Fully configurable from settings.json, it lets you tailor link detection and behavior to your workflow, including support for paths with spaces and custom base directories.",
+  "version": "0.0.1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tusharmohanpuria/Dynamic-Terminal-Paths.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Tusharmohanpuria/Dynamic-Terminal-Paths/issues"
+  },
+  "homepage": "https://github.com/Tusharmohanpuria/Dynamic-Terminal-Paths#readme",
+  "engines": {
+    "vscode": "^1.125.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "terminal",
+    "links",
+    "file paths",
+    "clickable",
+    "regex"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Dynamic Terminal Paths",
+      "properties": {
+        "dynamicTerminalPaths.matchers": {
+          "type": "array",
+          "markdownDescription": "Regex-based matchers that turn text in the integrated terminal into clickable links. Matchers are tried in order; the first one to claim a range of text wins (so put more specific matchers first).\n\n`uri`, `base`, and string `args` are template-expanded with:\n- Capture groups: `$0` (whole match), `$1`, `$2`…, `${12}`, `$$` = literal `$`.\n- Variables: `${workspaceFolder}`, `${workspaceFolder:Name}`, `${userHome}`, `${cwd}`, `${pathSeparator}`, `${/}` (literal `/`), `${env:VAR}`.\n- Encoding: append `:enc` to any variable or braced group to URL-encode it, e.g. `${1:enc}`, `${workspaceFolder:enc}`.",
+          "scope": "resource",
+          "default": [
+            {
+              "name": "Quoted file paths (handles spaces)",
+              "regex": "[\"']([^\"'\\n]+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)[\"']",
+              "group": 1,
+              "base": "${workspaceFolder}",
+              "action": "openFile"
+            },
+            {
+              "name": "File paths (relative or absolute, with line:col)",
+              "regex": "((?:\\.{1,2}[/\\\\]|~[/\\\\]|[A-Za-z]:[/\\\\])?[\\w.-]+(?:[/\\\\][\\w.-]+)+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)",
+              "group": 1,
+              "base": "${workspaceFolder}",
+              "action": "openFile"
+            }
+          ],
+          "items": {
+            "type": "object",
+            "required": [
+              "regex"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Human-readable name. Used as the link tooltip when 'tooltip' is not set."
+              },
+              "regex": {
+                "type": "string",
+                "markdownDescription": "Regex applied to each terminal line. The `g` (global) and `d` (indices) flags are always added automatically. Escape backslashes for JSON (e.g. `\\\\s`, `\\\\.`)."
+              },
+              "flags": {
+                "type": "string",
+                "description": "Extra regex flags, e.g. \"i\" for case-insensitive. 'g' and 'd' are always applied."
+              },
+              "group": {
+                "type": "number",
+                "default": 1,
+                "description": "Which capture group to underline as the link. Defaults to 1, falls back to the whole match."
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "openFile",
+                  "openUri",
+                  "runCommand"
+                ],
+                "markdownEnumDescriptions": [
+                  "Resolve the matched text to a file and open it in an editor tab.",
+                  "Build a URI from the `uri` template and open it (in VS Code, or externally if `external` is true).",
+                  "Run a VS Code command (`command`) with `args`."
+                ],
+                "markdownDescription": "What happens on click. Optional — inferred when omitted: `uri` present ⇒ `openUri`, `command` present ⇒ `runCommand`, otherwise `openFile`."
+              },
+              "tooltip": {
+                "type": "string",
+                "description": "Tooltip shown on hover. Falls back to 'name', then an action-specific default."
+              },
+              "base": {
+                "type": "string",
+                "default": "${workspaceFolder}",
+                "markdownDescription": "openFile only. Base directory for resolving relative matches (template-expanded). Absolute paths and `~` are honored directly; the terminal cwd and each workspace folder are also tried automatically, in that order."
+              },
+              "uri": {
+                "type": "string",
+                "markdownDescription": "openUri action. URI template (variables + capture groups), e.g. `https://github.com/org/repo/issues/$1` or `vscode://file/${workspaceFolder:enc}${/}$1`."
+              },
+              "external": {
+                "type": "boolean",
+                "default": false,
+                "description": "openUri only. Open the URI externally (e.g. in a browser) instead of inside VS Code."
+              },
+              "command": {
+                "type": "string",
+                "description": "runCommand only. VS Code command id to execute."
+              },
+              "args": {
+                "type": "array",
+                "markdownDescription": "runCommand action. Arguments passed to the command. String arguments are template-expanded; other values pass through unchanged. e.g. `[\"$1\"]` for `workbench.action.quickOpen`."
+              }
+            }
+          }
+        },
+        "dynamicTerminalPaths.maxLineLength": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 0,
+          "markdownDescription": "Skip link detection on terminal lines longer than this (characters). Guards against slow regex backtracking on very long lines (minified/base64 output). Set to `0` to disable link detection entirely."
+        },
+        "dynamicTerminalPaths.maxMatchesPerLine": {
+          "type": "number",
+          "default": 100,
+          "minimum": 1,
+          "description": "Maximum number of links to create per terminal line."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.125.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "typescript-eslint": "^8.61.1",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6",
+    "brace-expansion": "5.0.8"
+  }
+}
