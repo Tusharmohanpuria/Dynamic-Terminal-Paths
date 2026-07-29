@@ -35,7 +35,7 @@
       "properties": {
         "dynamicTerminalPaths.matchers": {
           "type": "array",
-          "markdownDescription": "Regex-based matchers that turn text in the integrated terminal into clickable links. Matchers are tried in order; the first one to claim a range of text wins (so put more specific matchers first).\n\n`uri`, `base`, and string `args` are template-expanded with:\n- Capture groups: `$0` (whole match), `$1`, `$2`…, `${12}`, `$$` = literal `$`.\n- Variables: `${workspaceFolder}`, `${workspaceFolder:Name}`, `${userHome}`, `${cwd}`, `${pathSeparator}`, `${/}` (literal `/`), `${env:VAR}`.\n- Encoding: append `:enc` to any variable or braced group to URL-encode it, e.g. `${1:enc}`, `${workspaceFolder:enc}`.",
+          "markdownDescription": "Regex-based matchers that turn text in the integrated terminal into clickable links. Matchers are tried in order; the first one to claim a range of text wins (so put more specific matchers first).\n\n`uri`, `base`, and string `args` are template-expanded with:\n- Capture groups: `$0` (whole match), `$1`, `$2`…, `${12}`, `$$` = literal `$`.\n- Variables: `${workspaceFolder}`, `${workspaceFolder:Name}`, `${userHome}`, `${cwd}`, `${pathSeparator}`, `${/}` (literal `/`), `${env:VAR}`, `${file}` / `${fileUri}` (resolved matched file, for openUri/runCommand).\n- Encoding: append `:enc` to any variable or braced group to URL-encode it, e.g. `${1:enc}`, `${workspaceFolder:enc}`.",
           "scope": "resource",
           "default": [
             {
@@ -46,8 +46,8 @@
               "action": "openFile"
             },
             {
-              "name": "File paths (relative or absolute, with line:col)",
-              "regex": "((?:\\.{1,2}[/\\\\]|~[/\\\\]|[A-Za-z]:[/\\\\])?[\\w.-]+(?:[/\\\\][\\w.-]+)+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)",
+              "name": "File paths (slash-anchored, spaces & line:col)",
+              "regex": "((?:[A-Za-z]:)?[/\\\\]?[^\\s/\\\\]+(?:[/\\\\][^/\\\\\\n]+)+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)",
               "group": 1,
               "base": "${workspaceFolder}",
               "action": "openFile"
@@ -115,7 +115,30 @@
               },
               "args": {
                 "type": "array",
-                "markdownDescription": "runCommand action. Arguments passed to the command. String arguments are template-expanded; other values pass through unchanged. e.g. `[\"$1\"]` for `workbench.action.quickOpen`."
+                "markdownDescription": "runCommand action. Arguments passed to the command. String arguments are template-expanded; other values pass through unchanged. `${file}` / `${fileUri}` expand to the resolved matched file. e.g. `[\"${fileUri}\"]`."
+              },
+              "actions": {
+                "type": "array",
+                "markdownDescription": "Multiple actions for one matcher. Clicking a link shows a picker to choose one (e.g. *Open file* vs *Open Mermaid preview*). Each entry uses the same `action`/`base`/`uri`/`external`/`command`/`args` fields plus a `label`. When set, the matcher's own top-level action fields are ignored.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "Label shown in the action picker."
+                    },
+                    "action": {
+                      "type": "string",
+                      "enum": ["openFile", "openUri", "runCommand"]
+                    },
+                    "base": { "type": "string" },
+                    "uri": { "type": "string" },
+                    "external": { "type": "boolean" },
+                    "command": { "type": "string" },
+                    "args": { "type": "array" }
+                  }
+                }
               }
             }
           }

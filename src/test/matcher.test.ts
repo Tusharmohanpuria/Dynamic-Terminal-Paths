@@ -3,16 +3,18 @@ import {
 	compileMatcher,
 	findLineMatches,
 	parseLocation,
+	pathTextVariants,
 	DEFAULT_MAX_LINE_LENGTH,
 	DEFAULT_MAX_MATCHES_PER_LINE,
 } from '../matcher';
 import { MatcherConfig } from '../types';
 
-// The strict default matcher shipped in package.json (regex source, not
-// JSON-escaped): requires a path separator, no spaces, so prose is not matched.
-const STRICT_MATCHER: MatcherConfig = {
+// The slash-anchored default matcher shipped in package.json (regex source, not
+// JSON-escaped): the first segment must be followed by a separator, so leading
+// prose is skipped; spaces are allowed inside later segments.
+const ANCHORED_MATCHER: MatcherConfig = {
 	name: 'File paths',
-	regex: '((?:\\.{1,2}[/\\\\]|~[/\\\\]|[A-Za-z]:[/\\\\])?[\\w.-]+(?:[/\\\\][\\w.-]+)+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)',
+	regex: '((?:[A-Za-z]:)?[/\\\\]?[^\\s/\\\\]+(?:[/\\\\][^/\\\\\\n]+)+\\.[A-Za-z0-9_]+(?:[:(]\\d+(?:[:,]\\d+)?\\)?)?)',
 	group: 1,
 	action: 'openFile',
 };
@@ -43,8 +45,8 @@ suite('matcher', () => {
 		assert.strictEqual(matches[0].data.text, line);
 	});
 
-	test('strict matcher extracts only the path from surrounding prose', () => {
-		const compiled = [compileMatcher(STRICT_MATCHER)];
+	test('anchored matcher extracts only the path from surrounding prose', () => {
+		const compiled = [compileMatcher(ANCHORED_MATCHER)];
 		const line = 'ERROR at src/app.ts:12:5';
 		const matches = findLineMatches(line, compiled);
 		assert.strictEqual(matches.length, 1);
@@ -54,8 +56,20 @@ suite('matcher', () => {
 		);
 	});
 
-	test('strict matcher ignores a bare filename (no separator)', () => {
-		const compiled = [compileMatcher(STRICT_MATCHER)];
+	test('anchored matcher skips the git prefix on a spaced path', () => {
+		const compiled = [compileMatcher(ANCHORED_MATCHER)];
+		const line =
+			'create mode 100644 call-center-flow-diagram-generator/diagrams/categories/Camden/Calls/Water Heater Repair.mmd';
+		const matches = findLineMatches(line, compiled);
+		assert.strictEqual(matches.length, 1);
+		assert.strictEqual(
+			matches[0].data.text,
+			'call-center-flow-diagram-generator/diagrams/categories/Camden/Calls/Water Heater Repair.mmd',
+		);
+	});
+
+	test('anchored matcher ignores a bare filename (no separator)', () => {
+		const compiled = [compileMatcher(ANCHORED_MATCHER)];
 		const matches = findLineMatches('see README.md for details', compiled);
 		assert.strictEqual(matches.length, 0);
 	});
@@ -67,7 +81,7 @@ suite('matcher', () => {
 	});
 
 	test('overlapping matchers: first one wins', () => {
-		const compiled = [compileMatcher(STRICT_MATCHER), compileMatcher(SPEC_MATCHER)];
+		const compiled = [compileMatcher(ANCHORED_MATCHER), compileMatcher(SPEC_MATCHER)];
 		const line = 'see src/app.ts';
 		const matches = findLineMatches(line, compiled);
 		assert.strictEqual(matches.length, 1);
@@ -83,13 +97,13 @@ suite('matcher', () => {
 	});
 
 	test('empty line and no matchers short-circuit', () => {
-		const compiled = [compileMatcher(STRICT_MATCHER)];
+		const compiled = [compileMatcher(ANCHORED_MATCHER)];
 		assert.strictEqual(findLineMatches('', compiled).length, 0);
 		assert.strictEqual(findLineMatches('src/app.ts', []).length, 0);
 	});
 
 	test('over-long lines are skipped', () => {
-		const compiled = [compileMatcher(STRICT_MATCHER)];
+		const compiled = [compileMatcher(ANCHORED_MATCHER)];
 		const line = 'x'.repeat(DEFAULT_MAX_LINE_LENGTH) + ' src/app.ts';
 		assert.strictEqual(findLineMatches(line, compiled).length, 0);
 	});
@@ -148,5 +162,22 @@ suite('parseLocation', () => {
 			line: 12,
 			column: undefined,
 		});
+	});
+});
+
+suite('pathTextVariants', () => {
+	test('no leading prose: single variant', () => {
+		assert.deepStrictEqual(pathTextVariants('src/app.ts'), ['src/app.ts']);
+	});
+
+	test('leading prose: adds a trimmed variant from the first separator token', () => {
+		assert.deepStrictEqual(pathTextVariants('create mode 100644 dir/file.mmd'), [
+			'create mode 100644 dir/file.mmd',
+			'dir/file.mmd',
+		]);
+	});
+
+	test('no separator anywhere: single variant', () => {
+		assert.deepStrictEqual(pathTextVariants('just some words'), ['just some words']);
 	});
 });

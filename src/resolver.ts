@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { parseLocation } from './matcher';
+import { parseLocation, pathTextVariants } from './matcher';
 import { expand, ExpandContext } from './template';
 
 export type ResolveContext = ExpandContext;
@@ -20,11 +20,13 @@ export async function resolveLink(
 	ctx: ResolveContext,
 ): Promise<ResolveResult | undefined> {
 	const { path: rawPath, line, column } = parseLocation(text);
-	const normalized = normalizeSeparators(rawPath);
 
-	for (const uri of candidateUris(normalized, base, groups, ctx)) {
-		if (await exists(uri)) {
-			return { uri, line, column };
+	for (const variant of pathTextVariants(rawPath)) {
+		const normalized = normalizeSeparators(variant);
+		for (const uri of candidateUris(normalized, base, groups, ctx)) {
+			if (await exists(uri)) {
+				return { uri, line, column };
+			}
 		}
 	}
 	return undefined;

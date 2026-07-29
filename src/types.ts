@@ -1,15 +1,12 @@
 export type MatcherAction = 'openFile' | 'openUri' | 'runCommand';
 
-export interface MatcherConfig {
-	name?: string;
-	regex: string;
-	// Extra regex flags; g and d are always added.
-	flags?: string;
-	// Capture group to underline. Defaults to 1, falls back to 0.
-	group?: number;
+// One thing a link can do. Used both directly on a matcher (single action) and
+// inside a matcher's `actions` list (picker).
+export interface ActionConfig {
+	// Label shown in the action picker when a matcher has multiple actions.
+	label?: string;
 	// Defaults per action inference: uri => openUri, command => runCommand, else openFile.
 	action?: MatcherAction;
-	tooltip?: string;
 
 	// openFile: base directory for relative matches (template-expanded).
 	base?: string;
@@ -22,6 +19,18 @@ export interface MatcherConfig {
 	// runCommand: command id and args (string args are template-expanded).
 	command?: string;
 	args?: unknown[];
+}
+
+export interface MatcherConfig extends ActionConfig {
+	name?: string;
+	regex: string;
+	// Extra regex flags; g and d are always added.
+	flags?: string;
+	// Capture group to underline. Defaults to 1, falls back to 0.
+	group?: number;
+	tooltip?: string;
+	// Multiple actions; clicking shows a picker to choose one.
+	actions?: ActionConfig[];
 }
 
 export interface CompiledMatcher {

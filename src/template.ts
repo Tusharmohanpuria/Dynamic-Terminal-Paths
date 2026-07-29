@@ -1,10 +1,12 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { MatcherAction, MatcherConfig } from './types';
+import { ActionConfig, MatcherAction } from './types';
 
 export interface ExpandContext {
 	cwd?: string;
+	// Absolute fsPath of the resolved matched file, for ${file} / ${fileUri}.
+	file?: string;
 }
 
 export function expand(template: string, groups: string[], ctx: ExpandContext): string {
@@ -71,6 +73,10 @@ function variableValue(kind: string, arg: string, ctx: ExpandContext): string | 
 			return path.sep;
 		case '/':
 			return '/';
+		case 'file':
+			return ctx.file ?? '';
+		case 'fileUri':
+			return ctx.file ? vscode.Uri.file(ctx.file).toString() : '';
 		case 'env':
 			return process.env[arg] ?? '';
 		default:
@@ -78,7 +84,13 @@ function variableValue(kind: string, arg: string, ctx: ExpandContext): string | 
 	}
 }
 
-export function resolveAction(config: MatcherConfig): MatcherAction {
+// True if a template references ${file} or ${fileUri} (so the matched path must
+// be resolved before expanding).
+export function needsFile(...templates: (string | undefined)[]): boolean {
+	return templates.some((t) => typeof t === 'string' && /\$\{file(?:Uri)?(?::enc)?\}/.test(t));
+}
+
+export function resolveAction(config: ActionConfig): MatcherAction {
 	if (config.action) {
 		return config.action;
 	}

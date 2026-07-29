@@ -2,7 +2,7 @@ import * as assert from 'assert';
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { expand, resolveAction } from '../template';
+import { expand, needsFile, resolveAction } from '../template';
 
 const groups = ['ISSUE-42', '42', 'my app'];
 const ctx = { cwd: '/tmp/work' };
@@ -78,18 +78,40 @@ suite('expand: order and mixing', () => {
 
 suite('resolveAction', () => {
 	test('explicit action wins', () => {
-		assert.strictEqual(resolveAction({ regex: 'x', action: 'openFile', uri: 'y' }), 'openFile');
+		assert.strictEqual(resolveAction({ action: 'openFile', uri: 'y' }), 'openFile');
 	});
 
 	test('uri implies openUri', () => {
-		assert.strictEqual(resolveAction({ regex: 'x', uri: 'y' }), 'openUri');
+		assert.strictEqual(resolveAction({ uri: 'y' }), 'openUri');
 	});
 
 	test('command implies runCommand', () => {
-		assert.strictEqual(resolveAction({ regex: 'x', command: 'c' }), 'runCommand');
+		assert.strictEqual(resolveAction({ command: 'c' }), 'runCommand');
 	});
 
 	test('default is openFile', () => {
-		assert.strictEqual(resolveAction({ regex: 'x' }), 'openFile');
+		assert.strictEqual(resolveAction({}), 'openFile');
+	});
+});
+
+suite('${file} / ${fileUri}', () => {
+	test('expand file vars from context', () => {
+		const out = expand('${file}', groups, { ...ctx, file: '/tmp/a.mmd' });
+		assert.strictEqual(out, '/tmp/a.mmd');
+	});
+
+	test('fileUri is a file:// URI', () => {
+		const out = expand('${fileUri}', groups, { ...ctx, file: '/tmp/a.mmd' });
+		assert.ok(out.startsWith('file://'));
+	});
+
+	test('missing file expands to empty', () => {
+		assert.strictEqual(expand('${file}', groups, ctx), '');
+	});
+
+	test('needsFile detects references', () => {
+		assert.strictEqual(needsFile('open ${fileUri}'), true);
+		assert.strictEqual(needsFile('a', '${file:enc}'), true);
+		assert.strictEqual(needsFile('no vars', undefined), false);
 	});
 });

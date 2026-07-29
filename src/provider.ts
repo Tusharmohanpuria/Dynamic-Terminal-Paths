@@ -7,8 +7,8 @@ import {
 	DEFAULT_MAX_MATCHES_PER_LINE,
 } from './matcher';
 import { resolveLink } from './resolver';
-import { expand, resolveAction } from './template';
-import { CompiledMatcher, LinkData, MatcherConfig } from './types';
+import { expand, ExpandContext, needsFile, resolveAction } from './template';
+import { ActionConfig, CompiledMatcher, LinkData, MatcherConfig } from './types';
 
 const CONFIG_SECTION = 'dynamicTerminalPaths';
 
@@ -67,17 +67,21 @@ export class DynamicTerminalLinkProvider
 
 	async handleTerminalLink(link: DtpTerminalLink): Promise<void> {
 		const { data } = link;
-		const action = resolveAction(data.matcher);
+		const choice = await this.chooseAction(data.matcher);
+		if (!choice) {
+			return;
+		}
+		const action = resolveAction(choice);
 
 		try {
 			switch (action) {
 				case 'openUri':
-					return await this.openUri(data);
+					return await this.openUri(data, choice);
 				case 'runCommand':
-					return await this.runCommand(data);
+					return await this.runCommand(data, choice);
 				case 'openFile':
 				default:
-					return await this.openFile(data);
+					return await this.openFile(data, choice);
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);
@@ -86,8 +90,33 @@ export class DynamicTerminalLinkProvider
 		}
 	}
 
-	private async openFile(data: LinkData): Promise<void> {
-		const base = data.matcher.base || '${workspaceFolder}';
+	// Returns the single action, or prompts a picker when a matcher defines many.
+	private async chooseAction(matcher: MatcherConfig): Promise<ActionConfig | undefined> {
+		const actions = matcher.actions?.length ? matcher.actions : [matcher];
+		if (actions.length === 1) {
+			return actions[0];
+		}
+		const items = actions.map((a, index) => ({ label: a.label || resolveAction(a), index }));
+		const pick = await vscode.window.showQuickPick(items, {
+			placeHolder: matcher.name ? `${matcher.name}: choose an action` : 'Choose an action',
+		});
+		return pick ? actions[pick.index] : undefined;
+	}
+
+	// Resolves the matched file only when a template needs it, then builds the
+	// expand context.
+	private async buildContext(data: LinkData, cfg: ActionConfig): Promise<ExpandContext> {
+		const ctx: ExpandContext = { cwd: data.cwd };
+		if (needsFile(cfg.uri, ...(cfg.args ?? []).map((a) => (typeof a === 'string' ? a : undefined)))) {
+			const base = cfg.base || '${workspaceFolder}';
+			const resolved = await resolveLink(data.text, base, data.groups, { cwd: data.cwd });
+			ctx.file = resolved?.uri.fsPath;
+		}
+		return ctx;
+	}
+
+	private async openFile(data: LinkData, cfg: ActionConfig): Promise<void> {
+		const base = cfg.base || '${workspaceFolder}';
 		const resolved = await resolveLink(data.text, base, data.groups, { cwd: data.cwd });
 		if (!resolved) {
 			vscode.window.showWarningMessage(
@@ -109,27 +138,27 @@ export class DynamicTerminalLinkProvider
 		await vscode.commands.executeCommand('vscode.open', resolved.uri, options);
 	}
 
-	private async openUri(data: LinkData): Promise<void> {
-		const template = data.matcher.uri;
+	private async openUri(data: LinkData, cfg: ActionConfig): Promise<void> {
+		const template = cfg.uri;
 		if (!template) {
-			throw new Error('matcher.uri is required for the openUri action');
+			throw new Error('uri is required for the openUri action');
 		}
-		const ctx = { cwd: data.cwd };
+		const ctx = await this.buildContext(data, cfg);
 		const uri = vscode.Uri.parse(expand(template, data.groups, ctx), true);
-		if (data.matcher.external) {
+		if (cfg.external) {
 			await vscode.env.openExternal(uri);
 		} else {
 			await vscode.commands.executeCommand('vscode.open', uri);
 		}
 	}
 
-	private async runCommand(data: LinkData): Promise<void> {
-		const command = data.matcher.command;
+	private async runCommand(data: LinkData, cfg: ActionConfig): Promise<void> {
+		const command = cfg.command;
 		if (!command) {
-			throw new Error('matcher.command is required for the runCommand action');
+			throw new Error('command is required for the runCommand action');
 		}
-		const ctx = { cwd: data.cwd };
-		const args = (data.matcher.args ?? []).map((arg) =>
+		const ctx = await this.buildContext(data, cfg);
+		const args = (cfg.args ?? []).map((arg) =>
 			typeof arg === 'string' ? expand(arg, data.groups, ctx) : arg,
 		);
 		await vscode.commands.executeCommand(command, ...args);

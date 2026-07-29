@@ -62,7 +62,8 @@ Two performance settings are covered under [Performance](#performance).
   `$$` = literal `$`.
 - **Variables:** `${workspaceFolder}`, `${workspaceFolder:Name}`, `${userHome}`,
   `${cwd}` (terminal cwd), `${pathSeparator}`, `${/}` (literal `/`, for URL paths),
-  `${env:VAR}`.
+  `${env:VAR}`, `${file}` / `${fileUri}` (the resolved matched file — for
+  `openUri`/`runCommand` templates).
 - **Encoding:** append `:enc` to any variable or braced group to URL-encode it
   (`${1:enc}`, `${workspaceFolder:enc}`) — e.g. so a `vscode://file` URI survives
   spaces.
@@ -80,6 +81,41 @@ elsewhere.
 
 A trailing `:LINE`, `:LINE:COL`, `(LINE)` or `(LINE,COL)` on an `openFile` match
 opens the file at that position. Include it in your capture group.
+
+### Multiple actions per link (picker)
+
+A matcher can offer several actions via `actions`. Clicking a link shows a
+QuickPick to choose one. Each entry uses the same fields (`action`, `base`, `uri`,
+`external`, `command`, `args`) plus a `label`.
+
+> **Why not Shift+click?** VS Code's terminal-link API does not report which
+> modifier was held on click (and Shift/Alt+click are reserved for terminal text
+> selection). So per-modifier routing isn't possible — the picker is the supported
+> way to offer more than one action.
+
+Example — a `.mmd` link that can open the file **or** its Mermaid preview. Replace
+`command` with your Mermaid extension's actual preview command id:
+
+```jsonc
+{
+  "name": "Mermaid diagrams",
+  "regex": "((?:[A-Za-z]:)?[/\\\\]?[^\\s/\\\\]+(?:[/\\\\][^/\\\\\\n]+)+\\.mmd)",
+  "group": 1,
+  "actions": [
+    { "label": "Open file", "action": "openFile" },
+    {
+      "label": "Open Mermaid preview",
+      "action": "runCommand",
+      "command": "<your.mermaid.preview.command>",
+      "args": ["${fileUri}"]
+    }
+  ]
+}
+```
+
+Many preview commands act on the active editor and ignore args — if so, add an
+`openFile` action entry before the command, or use `${fileUri}` where the command
+accepts a target.
 
 ## Defaults
 

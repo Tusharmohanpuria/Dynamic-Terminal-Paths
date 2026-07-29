@@ -135,12 +135,16 @@ function overlaps(claimed: Array<[number, number]>, start: number, end: number):
 }
 
 function defaultTooltip(config: MatcherConfig): string {
-	const action = config.action ?? (config.uri ? 'openUri' : config.command ? 'runCommand' : 'openFile');
+	if (config.actions && config.actions.length > 1) {
+		return 'Choose an action';
+	}
+	const single = config.actions?.[0] ?? config;
+	const action = single.action ?? (single.uri ? 'openUri' : single.command ? 'runCommand' : 'openFile');
 	switch (action) {
 		case 'openUri':
 			return 'Open link';
 		case 'runCommand':
-			return `Run ${config.command ?? 'command'}`;
+			return `Run ${single.command ?? 'command'}`;
 		default:
 			return 'Open file in VS Code';
 	}
@@ -179,4 +183,17 @@ function toInt(value: string | undefined): number | undefined {
 	}
 	const n = parseInt(value, 10);
 	return Number.isFinite(n) ? n : undefined;
+}
+
+// Returns the raw text plus, if leading tokens have no separator, a variant
+// starting at the first token containing "/" or "\". Lets resolution recover
+// when a matcher captured leading words before the real path.
+export function pathTextVariants(raw: string): string[] {
+	const variants = [raw];
+	const tokens = raw.split(' ');
+	const idx = tokens.findIndex((t) => t.includes('/') || t.includes('\\'));
+	if (idx > 0) {
+		variants.push(tokens.slice(idx).join(' '));
+	}
+	return variants;
 }
