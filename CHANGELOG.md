@@ -18,3 +18,4 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - Multiple actions per matcher via `actions[]` with a click-time QuickPick (works around the terminal-link API having no modifier-key info).
 - `${file}` / `${fileUri}` template variables (resolved matched file) for `openUri`/`runCommand` — e.g. passing a `.mmd` file to a Mermaid preview command.
 - Resolution safety net: recovers the real path when a matcher captures leading words before it.
+- `openFirst` option for `runCommand` actions: opens the resolved file before running the command, for commands that act on the active editor (e.g. `mermaidChart.preview`).

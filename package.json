@@ -117,6 +117,11 @@
                 "type": "array",
                 "markdownDescription": "runCommand action. Arguments passed to the command. String arguments are template-expanded; other values pass through unchanged. `${file}` / `${fileUri}` expand to the resolved matched file. e.g. `[\"${fileUri}\"]`."
               },
+              "openFirst": {
+                "type": "boolean",
+                "default": false,
+                "markdownDescription": "runCommand action. Open the resolved matched file (at its line/col) before running the command. Use for commands that act on the active editor, e.g. a preview command."
+              },
               "actions": {
                 "type": "array",
                 "markdownDescription": "Multiple actions for one matcher. Clicking a link shows a picker to choose one (e.g. *Open file* vs *Open Mermaid preview*). Each entry uses the same `action`/`base`/`uri`/`external`/`command`/`args` fields plus a `label`. When set, the matcher's own top-level action fields are ignored.",
@@ -136,7 +141,8 @@
                     "uri": { "type": "string" },
                     "external": { "type": "boolean" },
                     "command": { "type": "string" },
-                    "args": { "type": "array" }
+                    "args": { "type": "array" },
+                    "openFirst": { "type": "boolean" }
                   }
                 }
               }

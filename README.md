@@ -53,6 +53,7 @@ Two performance settings are covered under [Performance](#performance).
 | `external` | `openUri` | Open in a browser instead of inside VS Code. |
 | `command` | `runCommand` | VS Code command id. |
 | `args` | `runCommand` | Command arguments; string args are template-expanded. |
+| `openFirst` | `runCommand` | Open the resolved file before running the command (for commands that act on the active editor, e.g. a preview). |
 
 ### Template engine
 
@@ -106,16 +107,17 @@ Example — a `.mmd` link that can open the file **or** its Mermaid preview. Rep
     {
       "label": "Open Mermaid preview",
       "action": "runCommand",
-      "command": "<your.mermaid.preview.command>",
-      "args": ["${fileUri}"]
+      "command": "mermaidChart.preview",
+      "openFirst": true
     }
   ]
 }
 ```
 
-Many preview commands act on the active editor and ignore args — if so, add an
-`openFile` action entry before the command, or use `${fileUri}` where the command
-accepts a target.
+`openFirst: true` opens the file before running the command — needed for preview
+commands (like `mermaidChart.preview`) that act on the **active editor**. If your
+command instead takes the file as an argument, drop `openFirst` and use
+`"args": ["${fileUri}"]`.
 
 ## Defaults
 

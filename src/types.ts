@@ -19,6 +19,9 @@ export interface ActionConfig {
 	// runCommand: command id and args (string args are template-expanded).
 	command?: string;
 	args?: unknown[];
+	// runCommand: open the resolved matched file before running the command
+	// (for commands that act on the active editor).
+	openFirst?: boolean;
 }
 
 export interface MatcherConfig extends ActionConfig {

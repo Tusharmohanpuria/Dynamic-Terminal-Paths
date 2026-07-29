@@ -116,13 +116,21 @@ export class DynamicTerminalLinkProvider
 	}
 
 	private async openFile(data: LinkData, cfg: ActionConfig): Promise<void> {
-		const base = cfg.base || '${workspaceFolder}';
-		const resolved = await resolveLink(data.text, base, data.groups, { cwd: data.cwd });
-		if (!resolved) {
+		const found = await this.openResolvedFile(data, cfg);
+		if (!found) {
 			vscode.window.showWarningMessage(
 				`Dynamic Terminal Paths: could not find "${data.text.trim()}" in the workspace.`,
 			);
-			return;
+		}
+	}
+
+	// Opens the resolved matched file (at :line:col if present). Returns false if
+	// nothing on disk matched.
+	private async openResolvedFile(data: LinkData, cfg: ActionConfig): Promise<boolean> {
+		const base = cfg.base || '${workspaceFolder}';
+		const resolved = await resolveLink(data.text, base, data.groups, { cwd: data.cwd });
+		if (!resolved) {
+			return false;
 		}
 
 		const options: vscode.TextDocumentShowOptions = {};
@@ -136,6 +144,7 @@ export class DynamicTerminalLinkProvider
 		}
 
 		await vscode.commands.executeCommand('vscode.open', resolved.uri, options);
+		return true;
 	}
 
 	private async openUri(data: LinkData, cfg: ActionConfig): Promise<void> {
@@ -156,6 +165,15 @@ export class DynamicTerminalLinkProvider
 		const command = cfg.command;
 		if (!command) {
 			throw new Error('command is required for the runCommand action');
+		}
+		if (cfg.openFirst) {
+			const found = await this.openResolvedFile(data, cfg);
+			if (!found) {
+				vscode.window.showWarningMessage(
+					`Dynamic Terminal Paths: could not find "${data.text.trim()}" to open before running ${command}.`,
+				);
+				return;
+			}
 		}
 		const ctx = await this.buildContext(data, cfg);
 		const args = (cfg.args ?? []).map((arg) =>
