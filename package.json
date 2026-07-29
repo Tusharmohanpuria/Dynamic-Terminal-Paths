@@ -2,7 +2,7 @@
   "name": "dynamic-terminal-paths",
   "displayName": "Dynamic Terminal Paths",
   "description": "Dynamic Terminal Paths makes file paths in the integrated terminal smart and clickable. Define regex-based matchers in your VS Code settings to detect paths in Git output, logs, or test runs, and automatically open them in the editor instead of Explorer. Fully configurable from settings.json, it lets you tailor link detection and behavior to your workflow, including support for paths with spaces and custom base directories.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -135,14 +135,30 @@
                     },
                     "action": {
                       "type": "string",
-                      "enum": ["openFile", "openUri", "runCommand"]
+                      "enum": [
+                        "openFile",
+                        "openUri",
+                        "runCommand"
+                      ]
                     },
-                    "base": { "type": "string" },
-                    "uri": { "type": "string" },
-                    "external": { "type": "boolean" },
-                    "command": { "type": "string" },
-                    "args": { "type": "array" },
-                    "openFirst": { "type": "boolean" }
+                    "base": {
+                      "type": "string"
+                    },
+                    "uri": {
+                      "type": "string"
+                    },
+                    "external": {
+                      "type": "boolean"
+                    },
+                    "command": {
+                      "type": "string"
+                    },
+                    "args": {
+                      "type": "array"
+                    },
+                    "openFirst": {
+                      "type": "boolean"
+                    }
                   }
                 }
               }

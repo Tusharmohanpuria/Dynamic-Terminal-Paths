@@ -4,7 +4,7 @@ All notable changes to the "dynamic-terminal-paths" extension will be documented
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.0.2]
 
 ### Added
 - Regex-driven terminal link matchers configured via `dynamicTerminalPaths.matchers`.
